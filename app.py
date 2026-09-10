@@ -63,9 +63,16 @@ def convert_obsidian_links(text, base_path=''):
             return match.group(0)
         
         # PDF-Links (und andere Dateien) nicht verändern - KEIN .md anhängen!
+        # Bei .. am Anfang (z.B. ../99-Assets/) → base_path ignorieren und Pfad bereinigen!
         if '.' in url and not url.endswith('.md'):
             # Hat eine Extension (.pdf, .png, .jpg, etc.) → nicht verändern
-            return f'<a href="/vault/{base_path}{url}">{display}</a>'
+            if url.startswith('../'):
+                # Relativer Pfad mit .. → Pfad bereinigen (../ auflösen)
+                # Aus /vault/03-Werkzeug/../99-Assets/ wird /vault/99-Assets/
+                clean_path = os.path.normpath(f'/vault/{url}')
+                return f'<a href="{clean_path}">{display}</a>'
+            else:
+                return f'<a href="/vault/{base_path}{url}">{display}</a>'
         
         # Markdown-Links (.md oder keine Extension → als Markdown behandeln)
         folder = base_path if base_path else ''
