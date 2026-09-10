@@ -68,8 +68,10 @@ def convert_obsidian_links(text, base_path=''):
             # Hat eine Extension (.pdf, .png, .jpg, etc.) → nicht verändern
             if url.startswith('../'):
                 # Relativer Pfad mit .. → Pfad bereinigen (../ auflösen)
-                # Aus /vault/03-Werkzeug/../99-Assets/ wird /vault/99-Assets/
-                clean_path = os.path.normpath(f'/vault/{url}')
+                # Aus ../99-Assets/... wird /vault/99-Assets/...
+                # os.path.normpath löst /vault/../ auf → deshalb separat bauen
+                clean_path = f'/vault/{url}'  # Erst kombinieren
+                clean_path = '/vault/' + os.path.normpath(clean_path).lstrip('/vault/').lstrip('/')
                 return f'<a href="{clean_path}">{display}</a>'
             else:
                 return f'<a href="/vault/{base_path}{url}">{display}</a>'
