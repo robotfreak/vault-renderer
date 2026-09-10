@@ -58,13 +58,22 @@ def convert_obsidian_links(text, base_path=''):
         display = match.group(1)
         url = match.group(2)
         
+        # Externe Links und absolute Pfade nicht verändern
         if url.startswith('http') or url.startswith('/'):
             return match.group(0)
         
+        # PDF-Links (und andere Dateien) nicht verändern - KEIN .md anhängen!
+        if '.' in url and not url.endswith('.md'):
+            # Hat eine Extension (.pdf, .png, .jpg, etc.) → nicht verändern
+            return f'<a href="/vault/{base_path}{url}">{display}</a>'
+        
+        # Markdown-Links (.md oder keine Extension → als Markdown behandeln)
         folder = base_path if base_path else ''
         if url.endswith('/'):
+            # Ordner → kein .md
             link_url = f'/vault/{folder}{url.rstrip("/")}'
         else:
+            # Datei → .md anhängen wenn nicht schon vorhanden
             if not url.endswith('.md'):
                 url += '.md'
             link_url = f'/vault/{folder}{url}'
