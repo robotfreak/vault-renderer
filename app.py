@@ -13,7 +13,34 @@ import re
 def convert_obsidian_links(text, base_path=''):
     """Konvertiert [[Obsidian Link|Text]] und relative [Markdown](url) Links"""
     
-    # 1. [[Obsidian Link|Text]] konvertieren
+    # 1. Obsidian Bilder-Links ![[Bild.png]] konvertieren → <img src="...">
+    # WICHTIG: MUSS vor [[Link]] kommen, sonst wird ![[...]] zu !<a href="...">
+    def replace_obsidian_image(match):
+        image_path = match.group(1)
+        
+        # Pfad extrahieren (kann Ordner/Bild.png sein)
+        folder = ''
+        file_name = image_path
+        if '/' in image_path:
+            parts = image_path.rsplit('/', 1)
+            folder = parts[0] + '/'
+            file_name = parts[1]
+        
+        # Nur Bilder mit Extension behandeln
+        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp')
+        if file_name.lower().endswith(image_extensions):
+            # Bild-Pfad zusammenbauen
+            if folder:
+                img_url = f'/vault/{base_path}{folder}{file_name}'
+            else:
+                img_url = f'/vault/{base_path}{file_name}'
+            return f'<img src="{img_url}" alt="{file_name}">'
+        
+        return match.group(0)  # Kein Bild → unverändert lassen
+    
+    text = re.sub(r'!\[\[([^\]]+)\]\]', replace_obsidian_image, text)
+    
+    # 2. [[Obsidian Link|Text]] konvertieren
     def replace_obsidian(match):
         link_text = match.group(1)
         display_text = link_text
@@ -52,32 +79,6 @@ def convert_obsidian_links(text, base_path=''):
         return f'<a href="{link_url}">{display_text}</a>'
     
     text = re.sub(r'\[\[([^\]]+)\]\]', replace_obsidian, text)
-    
-    # 2. Obsidian Bilder-Links ![[Bild.png]] konvertieren → <img src="...">
-    def replace_obsidian_image(match):
-        image_path = match.group(1)
-        
-        # Pfad extrahieren (kann Ordner/Bild.png sein)
-        folder = ''
-        file_name = image_path
-        if '/' in image_path:
-            parts = image_path.rsplit('/', 1)
-            folder = parts[0] + '/'
-            file_name = parts[1]
-        
-        # Nur Bilder mit Extension behandeln
-        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp')
-        if file_name.lower().endswith(image_extensions):
-            # Bild-Pfad zusammenbauen
-            if folder:
-                img_url = f'/vault/{base_path}{folder}{file_name}'
-            else:
-                img_url = f'/vault/{base_path}{file_name}'
-            return f'<img src="{img_url}" alt="{file_name}">'
-        
-        return match.group(0)  # Kein Bild → unverändert lassen
-    
-    text = re.sub(r'!\[\[([^\]]+)\]\]', replace_obsidian_image, text)
     
     # 3. Markdown Bilder-Links ![Alt](url) konvertieren → <img src="...">
     def replace_image(match):
