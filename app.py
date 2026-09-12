@@ -18,25 +18,30 @@ def convert_obsidian_links(text, base_path=''):
     def replace_obsidian_image(match):
         image_path = match.group(1)
         
-        # Pfad extrahieren (kann Ordner/Bild.png sein)
-        folder = ''
-        file_name = image_path
-        if '/' in image_path:
-            parts = image_path.rsplit('/', 1)
-            folder = parts[0] + '/'
-            file_name = parts[1]
-        
         # Nur Bilder mit Extension behandeln
         image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp')
-        if file_name.lower().endswith(image_extensions):
-            # Bild-Pfad zusammenbauen
+        if not image_path.lower().endswith(image_extensions):
+            return match.group(0)  # Kein Bild → unverändert lassen
+        
+        # Relative Pfade mit ../ auflösen
+        if image_path.startswith('../'):
+            # ../99-Assets/... → /vault/99-Assets/...
+            clean_path = '/vault/' + os.path.normpath(f'/vault/{base_path}{image_path}').lstrip('/vault/').lstrip('/')
+            return f'<img src="{clean_path}" alt="{os.path.basename(image_path)}">'
+        else:
+            # Einfacher Pfad: Ordner/Bild.png
+            folder = ''
+            file_name = image_path
+            if '/' in image_path:
+                parts = image_path.rsplit('/', 1)
+                folder = parts[0] + '/'
+                file_name = parts[1]
+            
             if folder:
                 img_url = f'/vault/{base_path}{folder}{file_name}'
             else:
                 img_url = f'/vault/{base_path}{file_name}'
             return f'<img src="{img_url}" alt="{file_name}">'
-        
-        return match.group(0)  # Kein Bild → unverändert lassen
     
     text = re.sub(r'!\[\[([^\]]+)\]\]', replace_obsidian_image, text)
     
