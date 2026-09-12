@@ -53,7 +53,57 @@ def convert_obsidian_links(text, base_path=''):
     
     text = re.sub(r'\[\[([^\]]+)\]\]', replace_obsidian, text)
     
-    # 2. Relative [Markdown](url) Links konvertieren
+    # 2. Obsidian Bilder-Links ![[Bild.png]] konvertieren → <img src="...">
+    def replace_obsidian_image(match):
+        image_path = match.group(1)
+        
+        # Pfad extrahieren (kann Ordner/Bild.png sein)
+        folder = ''
+        file_name = image_path
+        if '/' in image_path:
+            parts = image_path.rsplit('/', 1)
+            folder = parts[0] + '/'
+            file_name = parts[1]
+        
+        # Nur Bilder mit Extension behandeln
+        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp')
+        if file_name.lower().endswith(image_extensions):
+            # Bild-Pfad zusammenbauen
+            if folder:
+                img_url = f'/vault/{base_path}{folder}{file_name}'
+            else:
+                img_url = f'/vault/{base_path}{file_name}'
+            return f'<img src="{img_url}" alt="{file_name}">'
+        
+        return match.group(0)  # Kein Bild → unverändert lassen
+    
+    text = re.sub(r'!\[\[([^\]]+)\]\]', replace_obsidian_image, text)
+    
+    # 3. Markdown Bilder-Links ![Alt](url) konvertieren → <img src="...">
+    def replace_image(match):
+        alt = match.group(1)
+        url = match.group(2)
+        
+        # Externe Links und absolute Pfade nicht verändern
+        if url.startswith('http') or url.startswith('/'):
+            return match.group(0)
+        
+        # Bilder mit Extension (.png, .jpg, .gif, .svg, etc.) → Pfad korrigieren
+        image_extensions = ('.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp')
+        if url.lower().endswith(image_extensions):
+            if url.startswith('../'):
+                # Relativer Pfad mit .. → Pfad bereinigen
+                clean_path = '/vault/' + os.path.normpath(f'/vault/{url}').lstrip('/vault/').lstrip('/')
+                return f'<img src="{clean_path}" alt="{alt}">'
+            else:
+                # Einfacher relativer Pfad
+                return f'<img src="/vault/{base_path}{url}" alt="{alt}">'
+        
+        return match.group(0)  # Kein Bild → unverändert lassen
+    
+    text = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_image, text)
+    
+    # 4. Relative [Markdown](url) Links konvertieren (KEINE Bilder!)
     def replace_md_link(match):
         display = match.group(1)
         url = match.group(2)
@@ -62,18 +112,18 @@ def convert_obsidian_links(text, base_path=''):
         if url.startswith('http') or url.startswith('/'):
             return match.group(0)
         
-        # PDF-Links (und andere Dateien) nicht verändern - KEIN .md anhängen!
-        # Bei .. am Anfang (z.B. ../99-Assets/) → base_path ignorieren und Pfad bereinigen!
+        # PDF-Links und Bilder (und andere Dateien) nicht verändern - KEIN .md anhängen!
         if '.' in url and not url.endswith('.md'):
-            # Hat eine Extension (.pdf, .png, .jpg, etc.) → nicht verändern
+            # Hat eine Extension (.pdf, .png, .jpg, .gif, etc.) → nicht verändern
             if url.startswith('../'):
                 # Relativer Pfad mit .. → Pfad bereinigen (../ auflösen)
-                # Aus ../99-Assets/... wird /vault/99-Assets/...
-                # os.path.normpath löst /vault/../ auf → deshalb separat bauen
-                clean_path = f'/vault/{url}'  # Erst kombinieren
+                # Aus ../99-Assets/Bild.png wird /vault/99-Assets/Bild.png
+                clean_path = f'/vault/{url}'
                 clean_path = '/vault/' + os.path.normpath(clean_path).lstrip('/vault/').lstrip('/')
                 return f'<a href="{clean_path}">{display}</a>'
             else:
+                # Einfacher relativer Pfad (z.B. Ordner/Bild.png)
+                # base_path davor setzen
                 return f'<a href="/vault/{base_path}{url}">{display}</a>'
         
         # Markdown-Links (.md oder keine Extension → als Markdown behandeln)
